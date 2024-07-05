@@ -99,11 +99,9 @@ if initiate:
     G, G1, G2 = create_initial_clusters(n1, p1, n2, p2)
 
     # Initial graph centrality
-    centrality_data_1 = []
-    centrality_data_2 = []
     centrality = calculate_eigenvector_centrality(G)
-    centrality_data_1.append([centrality[node] for node in range(G1.number_of_nodes())])
-    centrality_data_2.append([centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())])
+    centrality_data_1 = [centrality[node] for node in range(G1.number_of_nodes())]
+    centrality_data_2 = [centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
 
     # Initial positions for the graph layout
     pos = nx.spring_layout(G)
@@ -119,13 +117,18 @@ if initiate:
     st.session_state['G2'] = G2
     st.session_state['pos'] = pos
     st.session_state['centrality_sums'] = []
+    st.session_state['centrality_data_cluster1'] = []
+    st.session_state['centrality_data_cluster2'] = []
 
     # Calculate initial centrality sums
     centrality_sum_1 = sum(centrality[node] for node in range(G1.number_of_nodes()))
     centrality_sum_2 = sum(centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
     total_centrality_sum = sum(centrality.values())
+    
     # the first element in this array is the "step" of the simulation
     st.session_state['centrality_sums'].append([0, centrality_sum_1, centrality_sum_2, total_centrality_sum])
+    st.session_state['centrality_data_cluster1'].append(centrality_data_1)
+    st.session_state['centrality_data_cluster2'].append(centrality_data_2)
 
 
 # Check if the step tracker is initialized
@@ -151,16 +154,25 @@ if 'step' in st.session_state:
 
     # Calculate eigenvector centrality for the current graph
     centrality = calculate_eigenvector_centrality(G)
-    centrality_data_1 = [[centrality[node] for node in range(G1.number_of_nodes())] for _ in range(st.session_state.step + 1)]
-    centrality_data_2 = [[centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())] for _ in range(st.session_state.step + 1)]
-
+    centrality_data_1 = [centrality[node] for node in range(G1.number_of_nodes())]
+    centrality_data_2 = [centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
+    st.session_state['centrality_data_cluster1'].append(centrality_data_1)
+    st.session_state['centrality_data_cluster2'].append(centrality_data_2)
+    
     centrality_sum_1 = sum(centrality[node] for node in range(G1.number_of_nodes()))
     centrality_sum_2 = sum(centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
     total_centrality_sum = sum(centrality.values())
     st.session_state['centrality_sums'].append([st.session_state.step, centrality_sum_1, centrality_sum_2, total_centrality_sum])
 
     # Plot the graph and heatmaps
-    plot_graph_and_heatmaps(G, centrality_data_1, centrality_data_2, st.session_state.step, pos, st.session_state['centrality_sums'])
+    plot_graph_and_heatmaps(
+        G, 
+        st.session_state['centrality_data_cluster1'], 
+        st.session_state['centrality_data_cluster2'], 
+        st.session_state.step, 
+        pos, 
+        st.session_state['centrality_sums']
+    )
 
     st.session_state['G'] = G
     st.session_state['connections'] = connections
