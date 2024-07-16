@@ -252,16 +252,15 @@ if 'step' in st.session_state:
         st.session_state.step += 1
 
     # randomly select two nodes that transact in each cluster, and update the weights accordingly
-    for i in range(2):
-        u = np.random.randint(0, G1.number_of_nodes())
-        v = np.random.randint(0, G1.number_of_nodes())
-        new_weight = get_weight()
-        update_weight(G, G1, G2, 1, u, v, new_weight)
-        
-        u = np.random.randint(0, G2.number_of_nodes())
-        v = np.random.randint(0, G2.number_of_nodes())
-        new_weight = get_weight()
-        update_weight(G, G1, G2, 2, u, v, new_weight)
+    u = np.random.randint(0, G1.number_of_nodes())
+    v = np.random.randint(0, G1.number_of_nodes())
+    new_weight = get_weight()
+    update_weight(G, G1, G2, 1, u, v, new_weight)
+    
+    u = np.random.randint(0, G2.number_of_nodes())
+    v = np.random.randint(0, G2.number_of_nodes())
+    new_weight = get_weight()
+    update_weight(G, G1, G2, 2, u, v, new_weight)
 
     # Calculate eigenvector centrality for the current graph
     if ec_compute_selection == "Together":
