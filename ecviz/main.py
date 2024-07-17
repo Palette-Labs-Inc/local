@@ -58,6 +58,13 @@ def update_weight(G, G1, G2, graph_id, u, v, new_weight):
             G[G_node_u][G_node_v]['weight'] += new_weight
         else:
             G.add_edge(G_node_u, G_node_v, weight=new_weight)
+    elif graph_id == 3:
+        # in this case, there is no need to update G1 or G2 b/c those are the separate
+        # clusters, so no internal weights are being updated within those clusters
+        if G.has_edge(u, v):
+            G[u][v]['weight'] += new_weight
+        else:
+            G.add_edge(u, v, weight=new_weight)
 
 def calculate_eigenvector_centrality(G):
     ec_kwargs = {
@@ -179,14 +186,25 @@ def plot_graph_and_heatmaps(G, step, pos,
     )
 
 # st.sidebar.title("Graph Configuration")
-n1 = st.sidebar.slider("Number of nodes in Cluster 1", 1, 20, 5)
-p1 = st.sidebar.slider("Probability of edge creation in Cluster 1", 0.1, 1.0, 0.25)
-n2 = st.sidebar.slider("Number of nodes in Cluster 2", 1, 20, 15)
-p2 = st.sidebar.slider("Probability of edge creation in Cluster 2", 0.1, 1.0, 0.75)
-weight_selection = st.sidebar.radio("Weight Selection", ["U[0,1)", "1"])
-ec_compute_selection = st.sidebar.radio("EC Compute Cluster Setting", ["Separate", "Together"])
-use_weight_compute_ec = st.sidebar.radio("Use Weight to Compute Eigenvector Centrality", ["Yes", "No"])
-initiate = st.sidebar.button("Reset/Start")
+with st.sidebar:
+    with st.expander("Graph Config", expanded=False):
+        n1 = st.slider("Number of nodes in Cluster 1", 1, 20, 15)
+        p1 = st.slider("Probability of edge creation in Cluster 1", 0.1, 1.0, 0.50)
+        n2 = st.slider("Number of nodes in Cluster 2", 1, 20, 3)
+        p2 = st.slider("Probability of edge creation in Cluster 2", 0.1, 1.0, 0.50)
+    with st.expander("Compute settings", expanded=False):
+        weight_selection = st.radio("Weight Selection", ["U[0,1)", "1"], 
+                                    help='The new weight of an edge between two nodes, either can be drawn from a uniform distribution U[0,1) or static value of 1.')
+        ec_compute_selection = st.radio("EC Compute Cluster Setting", ["Together", "Separate"],
+                                        help='Compute eigenvector centrality for the entire graph or separately for each cluster.')
+        use_weight_compute_ec = st.radio("Use Weight to Compute Eigenvector Centrality", ["Yes", "No"],
+                                         help='Use the edge weights to compute eigenvector centrality.')
+
+    weight_scaling = st.slider("W(C2)=scale*W(C1) ", 0.1, 1.0, 0.1,
+                               help='Scaling of the weight applied when creating an edge in cluster 2, relative to the weight in cluster 1.')
+    which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 0.5, 
+                                  help='Probability of edge creation within clusters.  1-P(edge) is the probability of edge creation between clusters.')
+    initiate = st.sidebar.button("Reset/Start")
 
 if initiate:
     # Step 1: Create the initial clusters
@@ -196,7 +214,7 @@ if initiate:
     pos = nx.spring_layout(G)
 
     # Initialize the step tracker
-    st.session_state.step = 0
+    st.session_state['step'] = 0
     st.session_state['G'] = G
     st.session_state['G1'] = G1
     st.session_state['G2'] = G2
@@ -251,16 +269,25 @@ if 'step' in st.session_state:
     if st.sidebar.button("Next"):
         st.session_state.step += 1
 
-    # randomly select two nodes that transact in each cluster, and update the weights accordingly
-    u = np.random.randint(0, G1.number_of_nodes())
-    v = np.random.randint(0, G1.number_of_nodes())
-    new_weight = get_weight()
-    update_weight(G, G1, G2, 1, u, v, new_weight)
-    
-    u = np.random.randint(0, G2.number_of_nodes())
-    v = np.random.randint(0, G2.number_of_nodes())
-    new_weight = get_weight()
-    update_weight(G, G1, G2, 2, u, v, new_weight)
+    # determine whether we should create an edge within a cluster or between clusters
+    if np.random.rand() < which_edge_create:
+        # create an edge within each cluster
+        u = np.random.randint(0, G1.number_of_nodes())
+        v = np.random.randint(0, G1.number_of_nodes())
+        G1_weight = get_weight()
+        update_weight(G, G1, G2, 1, u, v, G1_weight)
+        
+        u = np.random.randint(0, G2.number_of_nodes())
+        v = np.random.randint(0, G2.number_of_nodes())
+        G2_weight = G1_weight * weight_scaling
+        update_weight(G, G1, G2, 2, u, v, G2_weight)
+    else:
+        # create an edge between the two clusters
+        u = np.random.randint(0, G1.number_of_nodes())
+        v = np.random.randint(G1.number_of_nodes(), G.number_of_nodes())
+        G_weight = get_weight()
+        update_weight(G, G1, G2, 3, u, v, G_weight)
+
 
     # Calculate eigenvector centrality for the current graph
     if ec_compute_selection == "Together":
