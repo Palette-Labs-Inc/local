@@ -365,7 +365,7 @@ if run_nsteps:
             
             # u = np.random.randint(0, G2.number_of_nodes())
             # v = np.random.randint(0, G2.number_of_nodes())
-            uv = np.random.choice(G1.nodes(), size=2, replace=False)
+            uv = np.random.choice(G2.nodes(), size=2, replace=False)
             u = uv[0]
             v = uv[1]
             G2_weight = G1_weight * weight_scaling
