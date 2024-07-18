@@ -90,7 +90,7 @@ def calculate_node_weight_sums(G):
 def calculate_graph_value(G):
     ec = calculate_eigenvector_centrality(G)
     w = calculate_node_weight_sums(G)
-    gv = {node: alpha_ec * ec[node] + alpha_w * w[node] for node in G.nodes()}
+    gv = {node: (alpha_ec * ec[node]) * (alpha_w * w[node]) for node in G.nodes()}
     return gv
 
 def plot_graph_and_heatmaps(G):
@@ -355,13 +355,19 @@ if run_nsteps:
         # determine whether we should create an edge within a cluster or between clusters
         if np.random.rand() < which_edge_create:
             # create an edge within each cluster
-            u = np.random.randint(0, G1.number_of_nodes())
-            v = np.random.randint(0, G1.number_of_nodes())
+            # u = np.random.randint(0, G1.number_of_nodes())
+            # v = np.random.randint(0, G1.number_of_nodes())
+            uv = np.random.choice(G1.nodes(), size=2, replace=False)
+            u = uv[0]
+            v = uv[1]
             G1_weight = get_weight()
             update_weight(G, G1, G2, 1, u, v, G1_weight)
             
-            u = np.random.randint(0, G2.number_of_nodes())
-            v = np.random.randint(0, G2.number_of_nodes())
+            # u = np.random.randint(0, G2.number_of_nodes())
+            # v = np.random.randint(0, G2.number_of_nodes())
+            uv = np.random.choice(G1.nodes(), size=2, replace=False)
+            u = uv[0]
+            v = uv[1]
             G2_weight = G1_weight * weight_scaling
             update_weight(G, G1, G2, 2, u, v, G2_weight)
         else:
