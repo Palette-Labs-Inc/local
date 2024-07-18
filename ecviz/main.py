@@ -250,7 +250,7 @@ with st.sidebar:
                                     help='The new weight of an edge between two nodes, either can be drawn from a uniform distribution U[0,1) or static value of 1.')    
     weight_scaling = st.slider("W(C2)=scale*W(C1) ", 0.1, 1.0, 0.1,
                             help='Scaling of the weight applied when creating an edge in cluster 2, relative to the weight in cluster 1.')
-    which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 0.5, 
+    which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 1.0, 
                                   help='Probability of edge creation within clusters.  1-P(edge) is the probability of edge creation between clusters.')
     alpha_ec = st.slider('Alpha-EC', 0.1, 1.0, 0.5, help='Alpha for EC in Graph Value.')
     alpha_w = st.slider('Alpha-W', 0.1, 1.0, 0.5, help='Alpha for Weight in Graph Value.')
