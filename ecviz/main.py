@@ -21,6 +21,9 @@ def plot_everything(sim):
     gv_1 = sim.graph_value_cluster1
     gv_2 = sim.graph_value_cluster2
     gv_sums = sim.graph_value_sums
+    gv_mroc_1 = sim.graph_value_mroc_cluster1
+    gv_mroc_2 = sim.graph_value_mroc_cluster2
+    gv_mroc_sums = sim.graph_value_mroc_sums
     centrality_data_1 = sim.centrality_data_cluster1
     centrality_data_2 = sim.centrality_data_cluster2
     centrality_sums = sim.centrality_sums
@@ -68,6 +71,37 @@ def plot_everything(sim):
         tooltip=['Step', 'Cluster', 'GraphValue Sum']
     ).properties(
         title='Sum of GraphValue'
+    )
+
+    gv_mroc_df_1 = pd.DataFrame(gv_mroc_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
+    gv_mroc_df_2 = pd.DataFrame(gv_mroc_2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
+    vmin = min(gv_mroc_df_1['GraphValue'].min(), gv_mroc_df_2['GraphValue'].min())
+    vmax = max(gv_mroc_df_1['GraphValue'].max(), gv_mroc_df_2['GraphValue'].max())
+    heatmap_gv_mroc_g1 = alt.Chart(gv_mroc_df_1).mark_rect().encode(
+        x='Step:O',
+        y='Node:O',
+        color=alt.Color('GraphValue:Q', scale=alt.Scale(scheme='blues', domain=[vmin, vmax]), legend=alt.Legend(title="GraphValue")),
+        tooltip=['Node', 'Step', 'GraphValue']
+    ).properties(
+        title='Cluster 1 GraphValue (MROC) Heatmap'
+    )
+    heatmap_gv_mroc_g2 = alt.Chart(gv_mroc_df_2).mark_rect().encode(
+        x='Step:O',
+        y='Node:O',
+        color=alt.Color('GraphValue:Q', scale=alt.Scale(scheme='blues', domain=[vmin, vmax]), legend=alt.Legend(title="GraphValue")),
+        tooltip=['Node', 'Step', 'GraphValue']
+    ).properties(
+        title='Cluster 2 GraphValue (MROC) Heatmap'
+    )
+    gv_mroc_sums_df = pd.DataFrame(gv_mroc_sums, columns=['Step', 'Cluster 1', 'Cluster 2', 'Total'])
+    gv_mroc_sums_df = gv_mroc_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue Sum')
+    line_plot_mroc_gv = alt.Chart(gv_mroc_sums_df).mark_line(point=True).encode(
+        x='Step:O',
+        y='GraphValue Sum:Q',
+        color='Cluster:N',
+        tooltip=['Step', 'Cluster', 'GraphValue Sum']
+    ).properties(
+        title='Sum of GraphValue (MROC)'
     )
 
     centrality_df_1 = pd.DataFrame(centrality_data_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
@@ -140,6 +174,11 @@ def plot_everything(sim):
                 line_plot_gv.properties(width=200, height=100)
             ),
             alt.hconcat(
+                heatmap_gv_mroc_g1.properties(width=200, height=100),
+                heatmap_gv_mroc_g2.properties(width=200, height=100),
+                line_plot_mroc_gv.properties(width=200, height=100)
+            ),
+            alt.hconcat(
                 heatmap_ec_g1.properties(width=200, height=100),
                 heatmap_ec_g2.properties(width=200, height=100),
                 line_plot_ec.properties(width=200, height=100)
@@ -185,6 +224,6 @@ if initiate:
 if 'simulation' in st.session_state:
     sim = st.session_state.simulation
     if run_nsteps:
-        for _ in range(1):
+        for _ in range(25):
             sim.run_epoch()
         plot_everything(sim)

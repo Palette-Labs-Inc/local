@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 
 class Simulation:
-    def __init__(self, n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha_ec, ec_compute_selection, use_weight_compute_ec):
+    def __init__(self, n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha_ec, ec_compute_selection, use_weight_compute_ec, 
+                 N_ticks=5):
         self.n1 = n1
         self.p1 = p1
         self.n2 = n2
@@ -15,6 +16,8 @@ class Simulation:
         self.alpha_w = 1-self.alpha_ec
         self.ec_compute_selection = ec_compute_selection
         self.use_weight_compute_ec = use_weight_compute_ec
+
+        self.N_ticks = N_ticks
 
         self.rng = np.random.default_rng()
         self.step = 0
@@ -30,6 +33,13 @@ class Simulation:
         self.graph_value_cluster1 = []
         self.graph_value_cluster2 = []
         self.graph_value_sums = []
+
+        self.delta_gv_mroc_history = []
+        self.delta_gv_history = []
+
+        self.graph_value_mroc_cluster1 = []
+        self.graph_value_mroc_cluster2 = []
+        self.graph_value_mroc_sums = []
 
     def update_alpha_ec(self, alpha_ec):
         print('updating alpha')
@@ -103,6 +113,11 @@ class Simulation:
 
     def step_graph_value(self):
         # get previous steps graph value information
+        node2gv = {}
+        node2gv_mroc = {}
+        node2deltagv = {}
+        node2deltagv_mroc = {}
+    
         if len(self.graph_value_cluster1) > 0:  # assume the rest are filled
             # get previous weights
             prev_weights_G1 = self.weight_sum_G1[-1]
@@ -113,43 +128,105 @@ class Simulation:
             # get previous graph value
             prev_gv_data_1 = self.graph_value_cluster1[-1]
             prev_gv_data_2 = self.graph_value_cluster2[-1]
+            prev_gv_mroc_data_1 = self.graph_value_mroc_cluster1[-1]
+            prev_gv_mroc_data_2 = self.graph_value_mroc_cluster2[-1]
 
             # now compute the delta in weight & EC, and update graph value accordingly
             ec_curr = self.calculate_eigenvector_centrality(self.G)
+            ec_curr_vec = np.array([ec_curr[node] for node in range(self.G.number_of_nodes())])
             w_curr = self.calculate_node_weight_sums(self.G)
 
-            node2gv = {}
+            # bin ec_curr into N_ticks
+            # print(ec_curr)
+            ec_bin_edges = np.linspace(np.min(ec_curr_vec), np.max(ec_curr_vec), self.N_ticks + 1)
+            ec_bin_indices = np.digitize(ec_curr_vec, ec_bin_edges, right=True)
+            # print(ec_bin_edges)
+            # print(ec_bin_indices)
+
+            # determine mean rate of change MROC for each bin of EC
+            bin2mroc = {}
+            for bin_i in range(0, self.N_ticks + 1):
+                bin_indices = np.where(ec_bin_indices == bin_i)[0]
+                # print(bin_i, bin_indices)
+                bin_mroc = 0
+                sum_deltaw = 0
+                sum_gv = 0
+                for node in bin_indices:
+                    if node < self.G1.number_of_nodes():
+                        delta_weight = w_curr[node] - prev_weights_G1[node]
+                        delta_ec = ec_curr[node] - prev_centrality_data_1[node]
+                        delta_ec = np.abs(delta_ec)
+                        
+                        sum_deltaw += delta_weight
+                        sum_gv += delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
+                    else:
+                        delta_weight = w_curr[node] - prev_weights_G2[node - self.G1.number_of_nodes()]
+                        delta_ec = ec_curr[node] - prev_centrality_data_2[node - self.G1.number_of_nodes()]
+                        delta_ec = np.abs(delta_ec)
+                        
+                        sum_deltaw += delta_weight
+                        sum_gv += delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
+                if sum_gv == 0:
+                    bin_mroc = 1  # nulify;  TODO: verify this
+                else:
+                    bin_mroc = sum_deltaw / sum_gv
+                bin2mroc[bin_i] = bin_mroc
+
             # print(self.G.number_of_nodes())
             # print(ec_curr)
             # print(w_curr)
+            # print(bin2mroc)
             for node in range(self.G.number_of_nodes()):
+                node_bin_index = np.digitize([ec_curr[node]], ec_bin_edges, right=True)[0]
+                # print(node, node_bin_index)
+                mroc = bin2mroc[node_bin_index]
+
                 if node < self.G1.number_of_nodes():
                     delta_weight = w_curr[node] - prev_weights_G1[node]
                     delta_ec = ec_curr[node] - prev_centrality_data_1[node]
-                    gv = prev_gv_data_1[node] + delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
+                    delta_ec = np.abs(delta_ec)   # NOTE: this is a hack, we need to address this
+                    delta_gv = delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
+
+                    gv = prev_gv_data_1[node] + delta_gv
+                    gv_mroc = prev_gv_mroc_data_1[node] + delta_gv*mroc
+                    delta_gv_mroc = delta_gv*mroc
                 else:
                     delta_weight = w_curr[node] - prev_weights_G2[node - self.G1.number_of_nodes()]
                     delta_ec = ec_curr[node] - prev_centrality_data_2[node - self.G1.number_of_nodes()]
-                    gv = prev_gv_data_2[node - self.G1.number_of_nodes()] + delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
-                print(node, delta_weight, delta_ec, gv)
+                    delta_ec = np.abs(delta_ec)   # NOTE: this is a hack, we need to address this
+                    delta_gv = delta_weight**(1-self.alpha_ec) * delta_ec**self.alpha_ec
+
+                    gv = prev_gv_data_2[node - self.G1.number_of_nodes()] + delta_gv
+                    gv_mroc = prev_gv_mroc_data_2[node - self.G1.number_of_nodes()] + delta_gv*mroc
+                    delta_gv_mroc = delta_gv*mroc
+
+                # print(self.step, node, mroc, gv, gv_mroc, delta_gv, delta_gv*mroc, delta_gv_mroc)
                 node2gv[node] = gv
+                node2gv_mroc[node] = gv_mroc
+                node2deltagv[node] = delta_gv
+                node2deltagv_mroc[node] = delta_gv_mroc
+
+            # print(node2gv)
+            # print(node2gv_mroc)
 
         else:
             # now compute the delta in weight & EC, and update graph value accordingly
             ec_curr = self.calculate_eigenvector_centrality(self.G)
             w_curr = self.calculate_node_weight_sums(self.G)
 
-            node2gv = {}
             for node in range(self.G.number_of_nodes()):
                 gv = w_curr[node]**(1-self.alpha_ec) * ec_curr[node]**self.alpha_ec
                 node2gv[node] = gv
+                node2gv_mroc[node] = gv
+                node2deltagv[node] = gv
+                node2deltagv_mroc[node] = gv
         # print(node2gv)
 
         # ec = self.calculate_eigenvector_centrality(G)
         # w = self.calculate_node_weight_sums(G)
         # gv = {node: (self.alpha_ec * ec[node]) * (self.alpha_w * w[node]) for node in G.nodes()}
         # return gv
-        return node2gv
+        return node2gv, node2gv_mroc, node2deltagv, node2deltagv_mroc
 
     def initialize_simulation(self):
         self.G, self.G1, self.G2 = self.create_initial_clusters(self.n1, self.p1, self.n2, self.p2)
@@ -163,13 +240,17 @@ class Simulation:
         centrality_sum_2 = sum(centrality[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
         total_centrality_sum = sum(centrality.values())
 
-        gv = self.step_graph_value()
+        gv, gv_mroc, delta_gv, delta_gv_mroc = self.step_graph_value()
         gv_data_1 = [gv[node] for node in range(self.G1.number_of_nodes())]
         gv_data_2 = [gv[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
         gv_sum_1 = sum(gv[node] for node in range(self.G1.number_of_nodes()))
         gv_sum_2 = sum(gv[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
         total_gv_sum = sum(gv.values())
-
+        gv_mroc_data_1 = [gv_mroc[node] for node in range(self.G1.number_of_nodes())]
+        gv_mroc_data_2 = [gv_mroc[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
+        gv_mroc_sum_1 = sum(gv_mroc[node] for node in range(self.G1.number_of_nodes()))
+        gv_mroc_sum_2 = sum(gv_mroc[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
+        total_gv_mroc_sum = sum(gv_mroc.values())
 
         weights_G1 = self.calculate_node_weight_sums(self.G1)
         weights_G2 = self.calculate_node_weight_sums(self.G2)
@@ -183,9 +264,15 @@ class Simulation:
         self.weight_sum_G1.append(weights_G1)
         self.weight_sum_G2.append(weights_G2)
         self.weight_sums.append([0, weight_sum_1, weight_sum_2, total_weight_sum])
+
         self.graph_value_cluster1.append(gv_data_1)
         self.graph_value_cluster2.append(gv_data_2)
         self.graph_value_sums.append([0, gv_sum_1, gv_sum_2, total_gv_sum])
+        self.delta_gv_mroc_history.append(delta_gv_mroc)
+        self.delta_gv_history.append(delta_gv)
+        self.graph_value_mroc_cluster1.append(gv_mroc_data_1)
+        self.graph_value_mroc_cluster2.append(gv_mroc_data_2)
+        self.graph_value_mroc_sums.append([self.step, gv_mroc_sum_1, gv_mroc_sum_2, total_gv_mroc_sum])
 
     def run_epoch(self):
         self.step += 1
@@ -219,12 +306,17 @@ class Simulation:
         centrality_sum_2 = sum(centrality[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
         total_centrality_sum = sum(centrality.values())
 
-        gv = self.step_graph_value()
+        gv, gv_mroc, delta_gv, delta_gv_mroc = self.step_graph_value()
         gv_data_1 = [gv[node] for node in range(self.G1.number_of_nodes())]
         gv_data_2 = [gv[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
         gv_sum_1 = sum(gv[node] for node in range(self.G1.number_of_nodes()))
         gv_sum_2 = sum(gv[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
         total_gv_sum = sum(gv.values())
+        gv_mroc_data_1 = [gv_mroc[node] for node in range(self.G1.number_of_nodes())]
+        gv_mroc_data_2 = [gv_mroc[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
+        gv_mroc_sum_1 = sum(gv_mroc[node] for node in range(self.G1.number_of_nodes()))
+        gv_mroc_sum_2 = sum(gv_mroc[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes()))
+        total_gv_mroc_sum = sum(gv_mroc.values())
         
         self.centrality_data_cluster1.append(centrality_data_1)
         self.centrality_data_cluster2.append(centrality_data_2)
@@ -233,6 +325,11 @@ class Simulation:
         self.graph_value_cluster1.append(gv_data_1)
         self.graph_value_cluster2.append(gv_data_2)
         self.graph_value_sums.append([self.step, gv_sum_1, gv_sum_2, total_gv_sum])
+        self.delta_gv_mroc_history.append(delta_gv_mroc)
+        self.delta_gv_history.append(delta_gv)
+        self.graph_value_mroc_cluster1.append(gv_mroc_data_1)
+        self.graph_value_mroc_cluster2.append(gv_mroc_data_2)
+        self.graph_value_mroc_sums.append([self.step, gv_mroc_sum_1, gv_mroc_sum_2, total_gv_mroc_sum])
 
         weight_G1 = self.calculate_node_weight_sums(self.G1)
         weight_G2 = self.calculate_node_weight_sums(self.G2)
