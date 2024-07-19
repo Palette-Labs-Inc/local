@@ -1,9 +1,9 @@
 import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import altair as alt
+from simulation import Simulation
 
 st.set_page_config(
     page_title="Eigenvector Centrality Visualization",
@@ -11,112 +11,34 @@ st.set_page_config(
     layout="wide",
 )
 
-rng = np.random.default_rng()
-def get_weight():
-    if weight_selection == "U[0,1)":
-        return rng.uniform()
-    elif weight_selection == "1":
-        return 1
+def update_alpha():
+    sim = st.session_state.simulation
+    sim.update_alpha_ec(alpha)
+    # st.session_state.simulation = sim  # not necessary, object reference
+    plot_everything(sim)
 
-# graph initialization
-def create_initial_clusters(n1, p1, n2, p2):
-    seed = np.random.randint(1, 10000)
-    G1 = nx.erdos_renyi_graph(n1, p1, seed=seed+1)
-    G2 = nx.erdos_renyi_graph(n2, p2, seed=seed+2)
-
-    # Assign random weights to edges
-    for (u, v) in G1.edges():
-        G1[u][v]['weight'] = get_weight()
-    for (u, v) in G2.edges():
-        G2[u][v]['weight'] = get_weight()
-
-    G = nx.disjoint_union_all([G1, G2])
-    return G, G1, G2
-
-def update_weight(G, G1, G2, graph_id, u, v, new_weight):
-    if graph_id == 1:
-        if G1.has_edge(u, v):
-            G1[u][v]['weight'] += new_weight
-        else:
-            G1.add_edge(u, v, weight=new_weight)
-        # Update or create the edge in G
-        if G.has_edge(u, v):
-            G[u][v]['weight'] += new_weight
-        else:
-            G.add_edge(u, v, weight=new_weight)
-    elif graph_id == 2:
-        if G2.has_edge(u, v):
-            G2[u][v]['weight'] += new_weight
-        else:
-            G2.add_edge(u, v, weight=new_weight)
-        # Calculate the offset for nodes in G2
-        offset = max(G1.nodes) + 1  # Assuming G1 nodes start from 0
-        G_node_u = u + offset
-        G_node_v = v + offset
-        # Update or create the edge in G
-        if G.has_edge(G_node_u, G_node_v):
-            G[G_node_u][G_node_v]['weight'] += new_weight
-        else:
-            G.add_edge(G_node_u, G_node_v, weight=new_weight)
-    elif graph_id == 3:
-        # in this case, there is no need to update G1 or G2 b/c those are the separate
-        # clusters, so no internal weights are being updated within those clusters
-        if G.has_edge(u, v):
-            G[u][v]['weight'] += new_weight
-        else:
-            G.add_edge(u, v, weight=new_weight)
-
-def calculate_eigenvector_centrality(G):
-    ec_kwargs = {
-        'max_iter': 1000,
-        'tol': 1e-2,
-    }
-    if use_weight_compute_ec:
-        ec_kwargs['weight'] = 'weight'
-    centrality = nx.eigenvector_centrality(
-        G, 
-        **ec_kwargs
-    )
-    return centrality
-
-def calculate_node_weight_sums(G):
-    weight_sums = {node: 0 for node in G.nodes()}
-    for u, v, data in G.edges(data=True):
-        weight = data.get('weight', 0.0)
-        weight_sums[u] += weight
-        weight_sums[v] += weight
-    return weight_sums
-
-def calculate_graph_value(G):
-    ec = calculate_eigenvector_centrality(G)
-    w = calculate_node_weight_sums(G)
-    gv = {node: (alpha_ec * ec[node]) * (alpha_w * w[node]) for node in G.nodes()}
-    return gv
-
-def plot_graph_and_heatmaps(G):
-    gv_1 = st.session_state.graph_value_cluster1
-    gv_2 = st.session_state.graph_value_cluster2
-    gv_sums = st.session_state.graph_value_sums
-    centrality_data_1 = st.session_state.centrality_data_cluster1
-    centrality_data_2 = st.session_state.centrality_data_cluster2
-    centrality_sums = st.session_state.centrality_sums
-    weight_sum_G1 = st.session_state.weight_sum_G1
-    weight_sum_G2 = st.session_state.weight_sum_G2
-    weight_sums = st.session_state.weight_sums
-    step = st.session_state.step
-    # pos = nx.spring_layout(G)  # dynamic position
-    pos = st.session_state.pos
+def plot_everything(sim):
+    gv_1 = sim.graph_value_cluster1
+    gv_2 = sim.graph_value_cluster2
+    gv_sums = sim.graph_value_sums
+    centrality_data_1 = sim.centrality_data_cluster1
+    centrality_data_2 = sim.centrality_data_cluster2
+    centrality_sums = sim.centrality_sums
+    weight_sum_G1 = sim.weight_sum_G1
+    weight_sum_G2 = sim.weight_sum_G2
+    weight_sums = sim.weight_sums
+    step = sim.step
     
+    pos = sim.pos
+
     fig, ax1 = plt.subplots(figsize=(12,2))
 
-    # Plot the graph
-    centrality = calculate_eigenvector_centrality(G)
-    node_color = [centrality[node] for node in G.nodes()]
-    nx.draw(G, pos, ax=ax1, with_labels=True, node_size=200, node_color=node_color, cmap=plt.cm.Blues, font_size=10, font_color='black', font_weight='bold', edge_color='gray')
+    centrality = sim.calculate_eigenvector_centrality(sim.G)
+    node_color = [centrality[node] for node in sim.G.nodes()]
+    nx.draw(sim.G, pos, ax=ax1, with_labels=True, node_size=200, node_color=node_color, cmap=plt.cm.Blues, font_size=10, font_color='black', font_weight='bold', edge_color='gray')
     ax1.set_title(f"Graph at Step {step}")    
     st.pyplot(fig, use_container_width=True)
 
-    # plot GV
     gv_df_1 = pd.DataFrame(gv_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
     gv_df_2 = pd.DataFrame(gv_2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
     vmin = min(gv_df_1['GraphValue'].min(), gv_df_2['GraphValue'].min())
@@ -148,7 +70,6 @@ def plot_graph_and_heatmaps(G):
         title='Sum of GraphValue'
     )
 
-    # plot EC    
     centrality_df_1 = pd.DataFrame(centrality_data_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
     centrality_df_2 = pd.DataFrame(centrality_data_2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
     vmin = min(centrality_df_1['Centrality'].min(), centrality_df_2['Centrality'].min())
@@ -180,7 +101,6 @@ def plot_graph_and_heatmaps(G):
         title='Sum of Eigenvector Centrality'
     )
 
-    ## plotting weights
     weight_df_1 = pd.DataFrame(weight_sum_G1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'WeightSum'})
     weight_df_2 = pd.DataFrame(weight_sum_G2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'WeightSum'})
     vmin = min(weight_df_1['WeightSum'].min(), weight_df_2['WeightSum'].min())
@@ -230,10 +150,8 @@ def plot_graph_and_heatmaps(G):
                 line_plot_sum.properties(width=200, height=100)
             ),
         ),
-        # use_container_width=True
     )
 
-# st.sidebar.title("Graph Configuration")
 with st.sidebar:
     with st.expander("Graph Config", expanded=False):
         n1 = st.slider("Number of nodes in Cluster 1", 1, 20, 15)
@@ -252,186 +170,21 @@ with st.sidebar:
                             help='Scaling of the weight applied when creating an edge in cluster 2, relative to the weight in cluster 1.')
     which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 1.0, 
                                   help='Probability of edge creation within clusters.  1-P(edge) is the probability of edge creation between clusters.')
-    alpha_ec = st.slider('Alpha-EC', 0.1, 1.0, 0.5, help='Alpha for EC in Graph Value.')
-    alpha_w = st.slider('Alpha-W', 0.1, 1.0, 0.5, help='Alpha for Weight in Graph Value.')
+    alpha = st.slider('Alpha', 0.1, 1.0, 0.5, 
+                         on_change=update_alpha,
+                         help='Alpha for EC in Graph Value.',)
 
     initiate = st.sidebar.button("Reset/Start")
     run_nsteps = st.sidebar.button("Run 25 Epochs")
 
 if initiate:
-    # Step 1: Create the initial clusters
-    G, G1, G2 = create_initial_clusters(n1, p1, n2, p2)
+    sim = Simulation(n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha, ec_compute_selection, use_weight_compute_ec)
+    sim.initialize_simulation()
+    st.session_state.simulation = sim
 
-    # Initial positions for the graph layout
-    pos = nx.spring_layout(G)
-
-    # Initialize the step tracker
-    st.session_state['step'] = 0
-    st.session_state['G'] = G
-    st.session_state['G1'] = G1
-    st.session_state['G2'] = G2
-    st.session_state['pos'] = pos
-    st.session_state['centrality_data_cluster1'] = []
-    st.session_state['centrality_data_cluster2'] = []
-    st.session_state['centrality_sums'] = []
-    st.session_state['weight_sum_G1'] = []
-    st.session_state['weight_sum_G2'] = []
-    st.session_state['weight_sums'] = []
-    st.session_state['graph_value_cluster1'] = []
-    st.session_state['graph_value_cluster2'] = []
-    st.session_state['graph_value_sums'] = []
-    
-
-    # Computation
-    if ec_compute_selection == "Together":
-        centrality = calculate_eigenvector_centrality(G)
-        centrality_data_1 = [centrality[node] for node in range(G1.number_of_nodes())]
-        centrality_data_2 = [centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
-        centrality_sum_1 = sum(centrality[node] for node in range(G1.number_of_nodes()))
-        centrality_sum_2 = sum(centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
-        total_centrality_sum = sum(centrality.values())
-
-        gv = calculate_graph_value(G)
-        gv_data_1 = [gv[node] for node in range(G1.number_of_nodes())]
-        gv_data_2 = [gv[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
-        gv_sum_1 = sum(gv[node] for node in range(G1.number_of_nodes()))
-        gv_sum_2 = sum(gv[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
-        total_gv_sum = sum(gv.values())
-
-    elif ec_compute_selection == "Separate":
-        c1 = calculate_eigenvector_centrality(G1)
-        c2 = calculate_eigenvector_centrality(G2)
-        centrality_data_1 = [c1[node] for node in range(G1.number_of_nodes())]
-        centrality_data_2 = [c2[node] for node in range(G2.number_of_nodes())]
-        centrality_sum_1 = sum(c1.values())
-        centrality_sum_2 = sum(c2.values())
-        total_centrality_sum = centrality_sum_1 + centrality_sum_2
-
-        gv1 = calculate_graph_value(G1)
-        gv2 = calculate_graph_value(G2)
-        gv_data_1 = [gv1[node] for node in range(G1.number_of_nodes())]
-        gv_data_2 = [gv2[node] for node in range(G2.number_of_nodes())]
-        gv_sum_1 = sum(gv1.values())
-        gv_sum_2 = sum(gv2.values())
-        total_gv_sum = gv_sum_1 + gv_sum_2
-    
-    # Weight Computation
-    weights_G1 = calculate_node_weight_sums(G1)
-    weights_G2 = calculate_node_weight_sums(G2)
-    weight_sum_1 = sum(weights_G1.values())
-    weight_sum_2 = sum(weights_G2.values())
-    total_weight_sum = weight_sum_1 + weight_sum_2
-    
-    # the first element in this array is the "step" of the simulation
-    st.session_state['centrality_sums'].append([0, centrality_sum_1, centrality_sum_2, total_centrality_sum])
-    st.session_state['centrality_data_cluster1'].append(centrality_data_1)
-    st.session_state['centrality_data_cluster2'].append(centrality_data_2)
-    st.session_state['weight_sum_G1'].append(weights_G1)
-    st.session_state['weight_sum_G2'].append(weights_G2)
-    st.session_state['weight_sums'].append([0, weight_sum_1, weight_sum_2, total_weight_sum])
-    st.session_state['graph_value_cluster1'].append(gv_data_1)
-    st.session_state['graph_value_cluster2'].append(gv_data_2)
-    st.session_state['graph_value_sums'].append([0, gv_sum_1, gv_sum_2, total_gv_sum])
-
-    plot_graph_and_heatmaps(
-        G
-    )
-
-
-# Check if the step tracker is initialized
-# if 'step' in st.session_state:
-if run_nsteps:
-    G = st.session_state.G
-    G1 = st.session_state.G1
-    G2 = st.session_state.G2
-    pos = st.session_state.pos
-
-    # run 50 iterations
-    for ii in range(25):
-
-        # if st.sidebar.button("Next"):
-        st.session_state.step += 1
-
-        # determine whether we should create an edge within a cluster or between clusters
-        if np.random.rand() < which_edge_create:
-            # create an edge within each cluster
-            # u = np.random.randint(0, G1.number_of_nodes())
-            # v = np.random.randint(0, G1.number_of_nodes())
-            uv = np.random.choice(G1.nodes(), size=2, replace=False)
-            u = uv[0]
-            v = uv[1]
-            G1_weight = get_weight()
-            update_weight(G, G1, G2, 1, u, v, G1_weight)
-            
-            # u = np.random.randint(0, G2.number_of_nodes())
-            # v = np.random.randint(0, G2.number_of_nodes())
-            uv = np.random.choice(G2.nodes(), size=2, replace=False)
-            u = uv[0]
-            v = uv[1]
-            G2_weight = G1_weight * weight_scaling
-            update_weight(G, G1, G2, 2, u, v, G2_weight)
-        else:
-            # create an edge between the two clusters
-            u = np.random.randint(0, G1.number_of_nodes())
-            v = np.random.randint(G1.number_of_nodes(), G.number_of_nodes())
-            G_weight = get_weight()
-            update_weight(G, G1, G2, 3, u, v, G_weight)
-
-
-        # Calculate eigenvector centrality for the current graph
-        if ec_compute_selection == "Together":
-            centrality = calculate_eigenvector_centrality(G)
-            centrality_data_1 = [centrality[node] for node in range(G1.number_of_nodes())]
-            centrality_data_2 = [centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
-            centrality_sum_1 = sum(centrality[node] for node in range(G1.number_of_nodes()))
-            centrality_sum_2 = sum(centrality[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
-            total_centrality_sum = sum(centrality.values())
-
-            gv = calculate_graph_value(G)
-            gv_data_1 = [gv[node] for node in range(G1.number_of_nodes())]
-            gv_data_2 = [gv[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes())]
-            gv_sum_1 = sum(gv[node] for node in range(G1.number_of_nodes()))
-            gv_sum_2 = sum(gv[node] for node in range(G1.number_of_nodes(), G1.number_of_nodes() + G2.number_of_nodes()))
-            total_gv_sum = sum(gv.values())
-        elif ec_compute_selection == "Separate":
-            c1 = calculate_eigenvector_centrality(G1)
-            c2 = calculate_eigenvector_centrality(G2)
-            centrality_data_1 = [c1[node] for node in range(G1.number_of_nodes())]
-            centrality_data_2 = [c2[node] for node in range(G2.number_of_nodes())]
-            centrality_sum_1 = sum(c1.values())
-            centrality_sum_2 = sum(c2.values())
-            total_centrality_sum = centrality_sum_1 + centrality_sum_2
-
-            gv1 = calculate_graph_value(G1)
-            gv2 = calculate_graph_value(G2)
-            gv_data_1 = [gv1[node] for node in range(G1.number_of_nodes())]
-            gv_data_2 = [gv2[node] for node in range(G2.number_of_nodes())]
-            gv_sum_1 = sum(gv1.values())
-            gv_sum_2 = sum(gv2.values())
-            total_gv_sum = gv_sum_1 + gv_sum_2
-
-        st.session_state['centrality_data_cluster1'].append(centrality_data_1)
-        st.session_state['centrality_data_cluster2'].append(centrality_data_2)
-        st.session_state['centrality_sums'].append([st.session_state.step, centrality_sum_1, centrality_sum_2, total_centrality_sum])
-
-        st.session_state['graph_value_cluster1'].append(gv_data_1)
-        st.session_state['graph_value_cluster2'].append(gv_data_2)
-        st.session_state['graph_value_sums'].append([st.session_state.step, gv_sum_1, gv_sum_2, total_gv_sum])
-
-        weight_G1 = calculate_node_weight_sums(G1)
-        weight_G2 = calculate_node_weight_sums(G2)
-        weight_sum_1 = sum(weight_G1.values())
-        weight_sum_2 = sum(weight_G2.values())
-        total_weight_sum = weight_sum_1 + weight_sum_2
-        st.session_state['weight_sum_G1'].append(weight_G1)
-        st.session_state['weight_sum_G2'].append(weight_G2)
-        st.session_state['weight_sums'].append([st.session_state.step, weight_sum_1, weight_sum_2, total_weight_sum])
-
-    st.session_state['G'] = G
-
-    # Plot the graph and heatmaps
-    plot_graph_and_heatmaps(
-        G
-    )
-
-    
+if 'simulation' in st.session_state:
+    sim = st.session_state.simulation
+    if run_nsteps:
+        for _ in range(1):
+            sim.run_epoch()
+        plot_everything(sim)
