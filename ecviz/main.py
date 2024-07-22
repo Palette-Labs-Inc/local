@@ -21,9 +21,11 @@ def plot_everything(sim):
     gv_1 = sim.graph_value_cluster1
     gv_2 = sim.graph_value_cluster2
     gv_sums = sim.graph_value_sums
+    gv_ratios = sim.graph_value_ratios
     gv_mroc_1 = sim.graph_value_mroc_cluster1
     gv_mroc_2 = sim.graph_value_mroc_cluster2
     gv_mroc_sums = sim.graph_value_mroc_sums
+    gv_mroc_ratios = sim.graph_value_mroc_ratios
     centrality_data_1 = sim.centrality_data_cluster1
     centrality_data_2 = sim.centrality_data_cluster2
     centrality_sums = sim.centrality_sums
@@ -72,6 +74,14 @@ def plot_everything(sim):
     ).properties(
         title='Sum of GraphValue'
     )
+    gv_ratio_df = pd.DataFrame(gv_ratios, columns=['Step', 'Ratio'])
+    line_plot_gv_ratio = alt.Chart(gv_ratio_df).mark_line(point=True).encode(
+        x='Step:O',
+        y='Ratio:Q',
+        tooltip=['Step', 'Ratio']
+    ).properties(
+        title='GraphValue Ratio (Cluster1/Cluster2)'
+    )
 
     gv_mroc_df_1 = pd.DataFrame(gv_mroc_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
     gv_mroc_df_2 = pd.DataFrame(gv_mroc_2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
@@ -102,6 +112,14 @@ def plot_everything(sim):
         tooltip=['Step', 'Cluster', 'GraphValue Sum']
     ).properties(
         title='Sum of GraphValue (MROC)'
+    )
+    gv_mroc_ratio_df = pd.DataFrame(gv_mroc_ratios, columns=['Step', 'Ratio'])
+    line_plot_gv_mroc_ratio = alt.Chart(gv_mroc_ratio_df).mark_line(point=True).encode(
+        x='Step:O',
+        y='Ratio:Q',
+        tooltip=['Step', 'Ratio']
+    ).properties(
+        title='GraphValue Ratio (Cluster1/Cluster2)'
     )
 
     centrality_df_1 = pd.DataFrame(centrality_data_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
@@ -171,12 +189,14 @@ def plot_everything(sim):
             alt.hconcat(
                 heatmap_gv_g1.properties(width=200, height=100),
                 heatmap_gv_g2.properties(width=200, height=100),
-                line_plot_gv.properties(width=200, height=100)
+                line_plot_gv.properties(width=200, height=100),
+                line_plot_gv_ratio.properties(width=200, height=100)
             ),
             alt.hconcat(
                 heatmap_gv_mroc_g1.properties(width=200, height=100),
                 heatmap_gv_mroc_g2.properties(width=200, height=100),
-                line_plot_mroc_gv.properties(width=200, height=100)
+                line_plot_mroc_gv.properties(width=200, height=100),
+                line_plot_gv_mroc_ratio.properties(width=200, height=100)
             ),
             alt.hconcat(
                 heatmap_ec_g1.properties(width=200, height=100),
