@@ -64,7 +64,9 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 GraphValue Heatmap'
     )
-    gv_sums_df = pd.DataFrame(gv_sums, columns=['Step', 'Cluster 1', 'Cluster 2', 'Total'])
+    gv_sums_df = pd.DataFrame(gv_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
+    gv_sums_df['NYC'] /= sim.n1
+    gv_sums_df['Buffalo'] /= sim.n2
     gv_sums_df = gv_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue Sum')
     line_plot_gv = alt.Chart(gv_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -72,15 +74,16 @@ def plot_everything(sim):
         color='Cluster:N',
         tooltip=['Step', 'Cluster', 'GraphValue Sum']
     ).properties(
-        title='Sum of GraphValue'
+        title='Node Avg. GraphValue'
     )
     gv_ratio_df = pd.DataFrame(gv_ratios, columns=['Step', 'Ratio'])
+    gv_ratio_df['Ratio'] = gv_ratio_df['Ratio'] / (sim.n1 / sim.n2)
     line_plot_gv_ratio = alt.Chart(gv_ratio_df).mark_line(point=True).encode(
         x='Step:O',
         y='Ratio:Q',
         tooltip=['Step', 'Ratio']
     ).properties(
-        title='GraphValue Ratio (Cluster1/Cluster2)'
+        title='Normalized Avg. GraphValue Ratio'
     )
 
     gv_mroc_df_1 = pd.DataFrame(gv_mroc_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'GraphValue'})
@@ -103,7 +106,9 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 GraphValue (MROC) Heatmap'
     )
-    gv_mroc_sums_df = pd.DataFrame(gv_mroc_sums, columns=['Step', 'Cluster 1', 'Cluster 2', 'Total'])
+    gv_mroc_sums_df = pd.DataFrame(gv_mroc_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
+    gv_mroc_sums_df['NYC'] /= sim.n1
+    gv_mroc_sums_df['Buffalo'] /= sim.n2
     gv_mroc_sums_df = gv_mroc_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue Sum')
     line_plot_mroc_gv = alt.Chart(gv_mroc_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -114,12 +119,13 @@ def plot_everything(sim):
         title='Sum of GraphValue (MROC)'
     )
     gv_mroc_ratio_df = pd.DataFrame(gv_mroc_ratios, columns=['Step', 'Ratio'])
+    gv_mroc_ratio_df['Ratio'] = gv_mroc_ratio_df['Ratio'] / (sim.n1 / sim.n2)
     line_plot_gv_mroc_ratio = alt.Chart(gv_mroc_ratio_df).mark_line(point=True).encode(
         x='Step:O',
         y='Ratio:Q',
         tooltip=['Step', 'Ratio']
     ).properties(
-        title='GraphValue Ratio (Cluster1/Cluster2)'
+        title='Normalized GraphValue Ratio'
     )
 
     centrality_df_1 = pd.DataFrame(centrality_data_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
