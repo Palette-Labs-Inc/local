@@ -36,9 +36,11 @@ def plot_everything(sim):
     
     pos = sim.pos
 
+    print(pd.DataFrame(gv_1)/pd.DataFrame(weight_sum_G1))
+
     fig, ax1 = plt.subplots(figsize=(12,2))
 
-    centrality = sim.calculate_eigenvector_centrality(sim.G)
+    centrality, _ = sim.calculate_eigenvector_centrality(sim.G)
     node_color = [centrality[node] for node in sim.G.nodes()]
     nx.draw(sim.G, pos, ax=ax1, with_labels=True, node_size=200, node_color=node_color, cmap=plt.cm.Blues, font_size=10, font_color='black', font_weight='bold', edge_color='gray')
     ax1.set_title(f"Graph at Step {step}")    

@@ -103,7 +103,10 @@ class Simulation:
         if self.use_weight_compute_ec:
             ec_kwargs['weight'] = 'weight'
         centrality = nx.eigenvector_centrality(G, **ec_kwargs)
-        return centrality
+        # normalize according to the scheme decided ...
+        max_centrality = max(centrality.values())
+        centrality_normalized = {node: centrality[node] / max_centrality for node in G.nodes()}
+        return centrality, centrality_normalized
 
     def calculate_node_weight_sums(self, G):
         weight_sums = {node: 0 for node in G.nodes()}
@@ -134,8 +137,8 @@ class Simulation:
             prev_gv_mroc_data_2 = self.graph_value_mroc_cluster2[-1]
 
             # now compute the delta in weight & EC, and update graph value accordingly
-            ec_curr = self.calculate_eigenvector_centrality(self.G)
-            ec_curr_vec = np.array([ec_curr[node] for node in range(self.G.number_of_nodes())])
+            ec_curr, ec_curr_normalized = self.calculate_eigenvector_centrality(self.G)
+            ec_curr_vec = np.array([ec_curr_normalized[node] for node in range(self.G.number_of_nodes())])
             w_curr = self.calculate_node_weight_sums(self.G)
 
             # bin ec_curr into N_ticks
@@ -167,7 +170,10 @@ class Simulation:
                     sum_gv += delta_gv
 
                     assert delta_weight >= 0
-                    assert (ec_curr[node] + delta_ec) >= 0, f"node: {node}//{ec_curr[node]}//{delta_ec}"
+                    if node < self.G1.number_of_nodes():
+                        assert (prev_centrality_data_1[node] + delta_ec) >= 0, f"node: {node}//{prev_centrality_data_1[node]}//{delta_ec}"
+                    else:
+                        assert (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec) >= 0, f"node: {node}//{prev_centrality_data_2[node - self.G1.number_of_nodes()]}//{delta_ec}"
                 if sum_gv == 0:
                     bin_mroc = 1  # nulify;  TODO: verify this
                 else:
@@ -178,7 +184,8 @@ class Simulation:
 
             # print(bin2mroc)
             for node in range(self.G.number_of_nodes()):
-                node_bin_index = np.digitize([ec_curr[node]], ec_bin_edges, right=True)[0]
+                # use the normalized EC to determine the bin
+                node_bin_index = np.digitize([ec_curr_normalized[node]], ec_bin_edges, right=True)[0]
                 mroc = bin2mroc[node_bin_index]
 
                 if node < self.G1.number_of_nodes():
@@ -200,7 +207,10 @@ class Simulation:
                     gv_mroc = prev_gv_mroc_data_2[node - self.G1.number_of_nodes()] + delta_gv*mroc
 
                 assert delta_weight >= 0
-                assert (ec_curr[node] + delta_ec) >= 0, f"node: {node}//{ec_curr[node]}//{delta_ec}"
+                if node < self.G1.number_of_nodes():
+                    assert (prev_centrality_data_1[node] + delta_ec) >= 0, f"node: {node}//{prev_centrality_data_1[node]}//{delta_ec}"
+                else:
+                    assert (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec) >= 0, f"node: {node}//{prev_centrality_data_2[node - self.G1.number_of_nodes()]}//{delta_ec}"
                 delta_gv_mroc = delta_gv*mroc
 
                 # print(self.step, node, mroc, gv, gv_mroc, delta_gv, delta_gv*mroc, delta_gv_mroc)
@@ -214,7 +224,7 @@ class Simulation:
 
         else:
             # now compute the delta in weight & EC, and update graph value accordingly
-            ec_curr = self.calculate_eigenvector_centrality(self.G)
+            ec_curr, _ = self.calculate_eigenvector_centrality(self.G)
             w_curr = self.calculate_node_weight_sums(self.G)
 
             for node in range(self.G.number_of_nodes()):
@@ -238,7 +248,7 @@ class Simulation:
         self.pos = nx.spring_layout(self.G)
         self.step = 0
 
-        centrality = self.calculate_eigenvector_centrality(self.G)
+        centrality, _ = self.calculate_eigenvector_centrality(self.G)
         centrality_data_1 = [centrality[node] for node in range(self.G1.number_of_nodes())]
         centrality_data_2 = [centrality[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
         centrality_sum_1 = sum(centrality[node] for node in range(self.G1.number_of_nodes()))
@@ -306,7 +316,7 @@ class Simulation:
 
             # weight_update = (G_weight, )
 
-        centrality = self.calculate_eigenvector_centrality(self.G)
+        centrality, _ = self.calculate_eigenvector_centrality(self.G)
         centrality_data_1 = [centrality[node] for node in range(self.G1.number_of_nodes())]
         centrality_data_2 = [centrality[node] for node in range(self.G1.number_of_nodes(), self.G1.number_of_nodes() + self.G2.number_of_nodes())]
         centrality_sum_1 = sum(centrality[node] for node in range(self.G1.number_of_nodes()))
