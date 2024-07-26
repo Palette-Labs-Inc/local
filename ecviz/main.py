@@ -17,6 +17,13 @@ def update_alpha():
     # st.session_state.simulation = sim  # not necessary, object reference
     plot_everything(sim)
 
+def div_df_ignore(df1, df2, ignore_column):
+    result = df1.drop(columns=[ignore_column]) / df2.drop(columns=[ignore_column])
+    result[ignore_column] = df1[ignore_column]
+    result = result[[ignore_column] + result.columns[:-1].tolist()]
+    
+    return result
+
 def plot_everything(sim):
     gv_1 = sim.graph_value_cluster1
     gv_2 = sim.graph_value_cluster2
@@ -36,7 +43,7 @@ def plot_everything(sim):
     
     pos = sim.pos
 
-    print(pd.DataFrame(gv_1)/pd.DataFrame(weight_sum_G1))
+    # print(pd.DataFrame(gv_1)/pd.DataFrame(weight_sum_G1))
 
     fig, ax1 = plt.subplots(figsize=(12,2))
 
@@ -118,7 +125,7 @@ def plot_everything(sim):
         color='Cluster:N',
         tooltip=['Step', 'Cluster', 'GraphValue Sum']
     ).properties(
-        title='Sum of GraphValue (MROC)'
+        title='Node Avg. GraphValue (MROC)'
     )
     gv_mroc_ratio_df = pd.DataFrame(gv_mroc_ratios, columns=['Step', 'Ratio'])
     gv_mroc_ratio_df['Ratio'] = gv_mroc_ratio_df['Ratio'] / (sim.n1 / sim.n2)
@@ -127,7 +134,7 @@ def plot_everything(sim):
         y='Ratio:Q',
         tooltip=['Step', 'Ratio']
     ).properties(
-        title='Normalized GraphValue Ratio'
+        title='Normalized Avg GraphValue Ratio (MROC)'
     )
 
     centrality_df_1 = pd.DataFrame(centrality_data_1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'Centrality'})
@@ -150,7 +157,7 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 Eigenvector Centrality Heatmap'
     )
-    centrality_sums_df = pd.DataFrame(centrality_sums, columns=['Step', 'Cluster 1', 'Cluster 2', 'Total'])
+    centrality_sums_df = pd.DataFrame(centrality_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
     centrality_sums_df = centrality_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='Centrality Sum')
     line_plot_ec = alt.Chart(centrality_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -159,6 +166,16 @@ def plot_everything(sim):
         tooltip=['Step', 'Cluster', 'Centrality Sum']
     ).properties(
         title='Sum of Eigenvector Centrality'
+    )
+    gv_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), 'Step')
+    gv_sums_div_weight_sum_dv = gv_sums_div_weight_sum_dv.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue/WeightSum')
+    line_plot_gv_div_weight_sum = alt.Chart(gv_sums_div_weight_sum_dv).mark_line(point=True).encode(
+        x='Step:O',
+        y='GraphValue/WeightSum:Q',
+        color='Cluster:N',
+        tooltip=['Step', 'Cluster', 'GraphValue/WeightSum']
+    ).properties(
+        title='GraphValue/WeightSum'
     )
 
     weight_df_1 = pd.DataFrame(weight_sum_G1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'WeightSum'})
@@ -181,7 +198,7 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 WeightSum Heatmap'
     )
-    weight_sums_df = pd.DataFrame(weight_sums, columns=['Step', 'Cluster 1', 'Cluster 2', 'Total'])
+    weight_sums_df = pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
     weight_sums_df = weight_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='Weight Sum')
     line_plot_sum = alt.Chart(weight_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -191,6 +208,17 @@ def plot_everything(sim):
     ).properties(
         title='Sum of Weights'
     )
+    gv_mroc_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_mroc_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), 'Step')
+    gv_mroc_sums_div_weight_sum_dv = gv_mroc_sums_div_weight_sum_dv.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue/WeightSum')
+    line_plot_gv_mroc_div_weight_sum = alt.Chart(gv_mroc_sums_div_weight_sum_dv).mark_line(point=True).encode(
+        x='Step:O',
+        y='GraphValue/WeightSum:Q',
+        color='Cluster:N',
+        tooltip=['Step', 'Cluster', 'GraphValue/WeightSum']
+    ).properties(
+        title='GraphValue/WeightSum (MROC)'
+    )
+    print(gv_mroc_sums_div_weight_sum_dv)
 
     st.altair_chart(
         alt.vconcat(
@@ -209,12 +237,14 @@ def plot_everything(sim):
             alt.hconcat(
                 heatmap_ec_g1.properties(width=200, height=100),
                 heatmap_ec_g2.properties(width=200, height=100),
-                line_plot_ec.properties(width=200, height=100)
+                line_plot_ec.properties(width=200, height=100),
+                line_plot_gv_div_weight_sum.properties(width=200, height=100)
             ),
             alt.hconcat(
                 heatmap_w_g1.properties(width=200, height=100),
                 heatmap_w_g2.properties(width=200, height=100),
-                line_plot_sum.properties(width=200, height=100)
+                line_plot_sum.properties(width=200, height=100),
+                line_plot_gv_mroc_div_weight_sum.properties(width=200, height=100)
             ),
         ),
     )
