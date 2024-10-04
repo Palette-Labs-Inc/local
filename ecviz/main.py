@@ -73,9 +73,10 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 GraphValue Heatmap'
     )
-    gv_sums_df = pd.DataFrame(gv_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
-    gv_sums_df['NYC'] /= sim.n1
-    gv_sums_df['Buffalo'] /= sim.n2
+    gv_sums_df = pd.DataFrame(gv_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total'])
+    gv_sums_df['Cluster1'] /= sim.n1
+    gv_sums_df['Cluster2'] /= sim.n2
+    gv_sums_df.drop(columns=['Total'], inplace=True)
     gv_sums_df = gv_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue Sum')
     line_plot_gv = alt.Chart(gv_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -115,9 +116,10 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 GraphValue (MROC) Heatmap'
     )
-    gv_mroc_sums_df = pd.DataFrame(gv_mroc_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
-    gv_mroc_sums_df['NYC'] /= sim.n1
-    gv_mroc_sums_df['Buffalo'] /= sim.n2
+    gv_mroc_sums_df = pd.DataFrame(gv_mroc_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total'])
+    gv_mroc_sums_df['Cluster1'] /= sim.n1
+    gv_mroc_sums_df['Cluster2'] /= sim.n2
+    gv_mroc_sums_df.drop(columns=['Total'], inplace=True)
     gv_mroc_sums_df = gv_mroc_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue Sum')
     line_plot_mroc_gv = alt.Chart(gv_mroc_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -157,7 +159,7 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 Eigenvector Centrality Heatmap'
     )
-    centrality_sums_df = pd.DataFrame(centrality_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
+    centrality_sums_df = pd.DataFrame(centrality_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total'])
     centrality_sums_df = centrality_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='Centrality Sum')
     line_plot_ec = alt.Chart(centrality_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -167,7 +169,7 @@ def plot_everything(sim):
     ).properties(
         title='Sum of Eigenvector Centrality'
     )
-    gv_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), 'Step')
+    gv_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), 'Step')
     gv_sums_div_weight_sum_dv = gv_sums_div_weight_sum_dv.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue/WeightSum')
     line_plot_gv_div_weight_sum = alt.Chart(gv_sums_div_weight_sum_dv).mark_line(point=True).encode(
         x='Step:O',
@@ -177,6 +179,17 @@ def plot_everything(sim):
     ).properties(
         title='GraphValue/WeightSum'
     )
+    # gv_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), 'Step')
+    # gv_sums_div_weight_sum_dv = gv_sums_div_weight_sum_dv.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue/WeightSum')
+    # gv_sums_totals = gv_sums.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue')
+    # line_plot_gv_div_weight_sum = alt.Chart(gv_sums_totals).mark_line(point=True).encode(
+    #     x='Step:O',
+    #     y='GraphValue:Q',
+    #     color='Cluster:N',
+    #     tooltip=['Step', 'Cluster', 'GraphValue']
+    # ).properties(
+    #     title='GraphValue'
+    # )
 
     weight_df_1 = pd.DataFrame(weight_sum_G1).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'WeightSum'})
     weight_df_2 = pd.DataFrame(weight_sum_G2).reset_index().melt(id_vars='index').rename(columns={'index': 'Step', 'variable': 'Node', 'value': 'WeightSum'})
@@ -198,7 +211,7 @@ def plot_everything(sim):
     ).properties(
         title='Cluster 2 WeightSum Heatmap'
     )
-    weight_sums_df = pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total'])
+    weight_sums_df = pd.DataFrame(weight_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total'])
     weight_sums_df = weight_sums_df.melt(id_vars='Step', var_name='Cluster', value_name='Weight Sum')
     line_plot_sum = alt.Chart(weight_sums_df).mark_line(point=True).encode(
         x='Step:O',
@@ -208,7 +221,7 @@ def plot_everything(sim):
     ).properties(
         title='Sum of Weights'
     )
-    gv_mroc_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_mroc_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'NYC', 'Buffalo', 'Total']), 'Step')
+    gv_mroc_sums_div_weight_sum_dv = div_df_ignore(pd.DataFrame(gv_mroc_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), pd.DataFrame(weight_sums, columns=['Step', 'Cluster1', 'Cluster2', 'Total']), 'Step')
     gv_mroc_sums_div_weight_sum_dv = gv_mroc_sums_div_weight_sum_dv.melt(id_vars='Step', var_name='Cluster', value_name='GraphValue/WeightSum')
     line_plot_gv_mroc_div_weight_sum = alt.Chart(gv_mroc_sums_div_weight_sum_dv).mark_line(point=True).encode(
         x='Step:O',
@@ -263,7 +276,7 @@ with st.sidebar:
 
     weight_selection = st.radio("Weight Selection", ["U[0,1)", "1"], 
                                     help='The new weight of an edge between two nodes, either can be drawn from a uniform distribution U[0,1) or static value of 1.')    
-    weight_scaling = st.slider("W(C2)=scale*W(C1) ", 0.1, 1.0, 0.1,
+    weight_scaling = st.slider("W(C2)=scale*W(C1) ", 0.01, 0.1, 0.01,
                             help='Scaling of the weight applied when creating an edge in cluster 2, relative to the weight in cluster 1.')
     which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 1.0, 
                                   help='Probability of edge creation within clusters.  1-P(edge) is the probability of edge creation between clusters.')
