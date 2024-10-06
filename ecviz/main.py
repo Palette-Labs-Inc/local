@@ -11,11 +11,11 @@ st.set_page_config(
     layout="wide",
 )
 
-def update_alpha():
-    sim = st.session_state.simulation
-    sim.update_alpha_ec(alpha)
-    # st.session_state.simulation = sim  # not necessary, object reference
-    plot_everything(sim)
+# def update_alpha():
+#     sim = st.session_state.simulation
+#     sim.update_alpha_ec(alpha)
+#     # st.session_state.simulation = sim  # not necessary, object reference
+#     plot_everything(sim)
 
 def div_df_ignore(df1, df2, ignore_column):
     result = df1.drop(columns=[ignore_column]) / df2.drop(columns=[ignore_column])
@@ -280,15 +280,16 @@ with st.sidebar:
                             help='Scaling of the weight applied when creating an edge in cluster 2, relative to the weight in cluster 1.')
     which_edge_create = st.slider('P(edge) within clusters', 0.1, 1.0, 1.0, 
                                   help='Probability of edge creation within clusters.  1-P(edge) is the probability of edge creation between clusters.')
-    alpha = st.slider('Alpha', 0.1, 1.0, 0.5, 
-                         on_change=update_alpha,
-                         help='Alpha for EC in Graph Value.',)
+    # alpha = st.slider('Alpha', 0.1, 1.0, 0.5, 
+    #                      on_change=update_alpha,
+    #                      help='Alpha for EC in Graph Value.',)
 
     initiate = st.sidebar.button("Reset/Start")
     run_nsteps = st.sidebar.button("Run 25 Epochs")
 
 if initiate:
-    sim = Simulation(n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha, ec_compute_selection, use_weight_compute_ec)
+    # sim = Simulation(n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha, ec_compute_selection, use_weight_compute_ec)
+    sim = Simulation(n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, ec_compute_selection, use_weight_compute_ec)
     sim.initialize_simulation()
     st.session_state.simulation = sim
 

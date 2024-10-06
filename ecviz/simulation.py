@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 
 class Simulation:
-    def __init__(self, n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, alpha_ec, ec_compute_selection, use_weight_compute_ec, 
+    def __init__(self, n1, p1, n2, p2, weight_selection, weight_scaling, which_edge_create, 
+                #  alpha_ec, 
+                 ec_compute_selection, use_weight_compute_ec, 
                  N_ticks=5):
         self.n1 = n1
         self.p1 = p1
@@ -12,8 +14,8 @@ class Simulation:
         self.weight_selection = weight_selection
         self.weight_scaling = weight_scaling
         self.which_edge_create = which_edge_create
-        self.alpha_ec = alpha_ec
-        self.alpha_w = 1-self.alpha_ec
+        # self.alpha_ec = alpha_ec
+        # self.alpha_w = 1-self.alpha_ec
         self.ec_compute_selection = ec_compute_selection
         self.use_weight_compute_ec = use_weight_compute_ec
 
@@ -157,14 +159,20 @@ class Simulation:
                         delta_weight = w_curr[node] - prev_weights_G1[node]
                         delta_ec = ec_curr[node] - prev_centrality_data_1[node]
 
-                        delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_1[node] + delta_ec)**self.alpha_ec) - \
-                                (prev_weights_G1[node]**(1-self.alpha_ec) * prev_centrality_data_1[node]**self.alpha_ec)
+                        # delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_1[node] + delta_ec)**self.alpha_ec) - \
+                        #         (prev_weights_G1[node]**(1-self.alpha_ec) * prev_centrality_data_1[node]**self.alpha_ec)
+                        prev_ec = prev_centrality_data_1[node]
+                        delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-prev_ec) * (prev_centrality_data_1[node] + delta_ec)**prev_ec) - \
+                                (prev_weights_G1[node]**(1-prev_ec) * prev_centrality_data_1[node]**prev_ec)
                     else:
                         delta_weight = w_curr[node] - prev_weights_G2[node - self.G1.number_of_nodes()]
                         delta_ec = ec_curr[node] - prev_centrality_data_2[node - self.G1.number_of_nodes()]
 
-                        delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**self.alpha_ec) - \
-                                (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-self.alpha_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**self.alpha_ec)
+                        # delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**self.alpha_ec) - \
+                        #         (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-self.alpha_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**self.alpha_ec)
+                        prev_ec = prev_centrality_data_2[node - self.G1.number_of_nodes()]
+                        delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-prev_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**prev_ec) - \
+                                (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-prev_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**prev_ec)
                     
                     sum_deltaw += delta_weight
                     sum_gv += delta_gv
@@ -191,8 +199,11 @@ class Simulation:
                 if node < self.G1.number_of_nodes():
                     delta_weight = w_curr[node] - prev_weights_G1[node]
                     delta_ec = ec_curr[node] - prev_centrality_data_1[node]
-                    delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_1[node] + delta_ec)**self.alpha_ec) - \
-                                (prev_weights_G1[node]**(1-self.alpha_ec) * prev_centrality_data_1[node]**self.alpha_ec)
+                    # delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_1[node] + delta_ec)**self.alpha_ec) - \
+                    #             (prev_weights_G1[node]**(1-self.alpha_ec) * prev_centrality_data_1[node]**self.alpha_ec)
+                    prev_ec = prev_centrality_data_1[node]
+                    delta_gv = ((prev_weights_G1[node] + delta_weight)**(1-prev_ec) * (prev_centrality_data_1[node] + delta_ec)**prev_ec) - \
+                                (prev_weights_G1[node]**(1-prev_ec) * prev_centrality_data_1[node]**prev_ec)
 
                     gv = prev_gv_data_1[node] + delta_gv
                     gv_mroc = prev_gv_mroc_data_1[node] + delta_gv*mroc
@@ -200,8 +211,11 @@ class Simulation:
                     delta_weight = w_curr[node] - prev_weights_G2[node - self.G1.number_of_nodes()]
                     delta_ec = ec_curr[node] - prev_centrality_data_2[node - self.G1.number_of_nodes()]
                     
-                    delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**self.alpha_ec) - \
-                                (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-self.alpha_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**self.alpha_ec)
+                    # delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-self.alpha_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**self.alpha_ec) - \
+                    #             (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-self.alpha_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**self.alpha_ec)
+                    prev_ec = prev_centrality_data_2[node - self.G1.number_of_nodes()]
+                    delta_gv = ((prev_weights_G2[node - self.G1.number_of_nodes()] + delta_weight)**(1-prev_ec) * (prev_centrality_data_2[node - self.G1.number_of_nodes()] + delta_ec)**prev_ec) - \
+                                (prev_weights_G2[node - self.G1.number_of_nodes()]**(1-prev_ec) * prev_centrality_data_2[node - self.G1.number_of_nodes()]**prev_ec)
 
                     gv = prev_gv_data_2[node - self.G1.number_of_nodes()] + delta_gv
                     gv_mroc = prev_gv_mroc_data_2[node - self.G1.number_of_nodes()] + delta_gv*mroc
@@ -228,7 +242,9 @@ class Simulation:
             w_curr = self.calculate_node_weight_sums(self.G)
 
             for node in range(self.G.number_of_nodes()):
-                gv = w_curr[node]**(1-self.alpha_ec) * ec_curr[node]**self.alpha_ec
+                # gv = w_curr[node]**(1-self.alpha_ec) * ec_curr[node]**self.alpha_ec
+                ecc = ec_curr[node]
+                gv = w_curr[node]**(1-ecc) * ec_curr[node]**ecc
                 node2gv[node] = gv
                 node2gv_mroc[node] = gv
                 node2deltagv[node] = gv
